@@ -2,3 +2,4 @@ streamlit
 streamlit-autorefresh
 streamlit-extras
 pandas
+psycopg2-binary
