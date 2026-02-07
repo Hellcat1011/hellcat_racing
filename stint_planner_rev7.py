@@ -30,6 +30,7 @@ import psycopg2
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 from streamlit_extras.stylable_container import stylable_container
+from urllib.parse import urlparse, unquote
 
 # ----------------------------
 # Page config
@@ -49,7 +50,28 @@ CONTROLLER_TIMEOUT_SEC = 15  # takeover allowed after this many seconds without 
 
 @st.cache_resource
 def get_db_conn():
-    return psycopg2.connect(st.secrets["SUPABASE_DB_URL"])
+    url = st.secrets["SUPABASE_DB_URL"].strip()
+
+    # Parse postgresql://user:pass@host:port/dbname
+    u = urlparse(url)
+    if u.scheme not in ("postgres", "postgresql"):
+        raise ValueError("SUPABASE_DB_URL must start with postgresql://")
+
+    user = u.username
+    password = unquote(u.password or "")  # supports URL-encoded passwords
+    host = u.hostname
+    port = u.port or 5432
+    dbname = (u.path or "").lstrip("/") or "postgres"
+
+    return psycopg2.connect(
+        dbname=dbname,
+        user=user,
+        password=password,
+        host=host,
+        port=port,
+        sslmode="require",
+    )
+
 
 
 def db_ensure_race_row(race_id: str) -> None:
