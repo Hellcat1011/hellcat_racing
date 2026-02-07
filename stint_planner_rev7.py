@@ -48,20 +48,21 @@ if "race_mode_state" not in st.session_state:
 CONTROLLER_TIMEOUT_SEC = 15  # takeover allowed after this many seconds without heartbeat
 
 
+from urllib.parse import urlparse, unquote
+
 @st.cache_resource
 def get_db_conn():
     url = st.secrets["SUPABASE_DB_URL"].strip()
-
-    # Parse postgresql://user:pass@host:port/dbname
     u = urlparse(url)
-    if u.scheme not in ("postgres", "postgresql"):
-        raise ValueError("SUPABASE_DB_URL must start with postgresql://")
 
     user = u.username
-    password = unquote(u.password or "")  # supports URL-encoded passwords
+    password = unquote(u.password or "")
     host = u.hostname
     port = u.port or 5432
     dbname = (u.path or "").lstrip("/") or "postgres"
+
+    if not user or not host:
+        raise ValueError("SUPABASE_DB_URL parsing failed: missing user/host")
 
     return psycopg2.connect(
         dbname=dbname,
@@ -69,8 +70,10 @@ def get_db_conn():
         password=password,
         host=host,
         port=port,
-        sslmode="require",
+        sslmode="require",   # <-- important on Streamlit Cloud
+        connect_timeout=10,
     )
+
 
 
 
